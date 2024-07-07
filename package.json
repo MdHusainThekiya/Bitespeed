@@ -12,7 +12,8 @@
     "type": "git",
     "url": "git+https://github.com/MdHusainThekiya/Bitespeed.git"
   },
-  "author": "",
+  "author": "Md Husain Thekiya (hussainthekiya@gmail.com)",
+  "keywords": ["node.js", "typescript", "express.js", "postgresql", "sql", "API", "boilerplate"],
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/MdHusainThekiya/Bitespeed/issues"
