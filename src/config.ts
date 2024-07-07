@@ -24,7 +24,7 @@ interface Config {
 
 const config : Config = {
   service : {
-    port              : Number(process.env.PORT) || 4040,
+    port              : Number(process.env.SERVICE_PORT) || 4040,
     enableLogs        : process.env.ENABLE_LOGS ? (process.env.ENABLE_LOGS).trim().toString().toLowerCase() === "true" ? true : false                 : true,
     allowedLogLevels  : process.env.ALLOWED_LOG_LEVELS ? (process.env.ALLOWED_LOG_LEVELS).trim().toString().split(",")                                : ['all'],
     enableLogLocation : process.env.ENABLE_LOG_LOCATION ? (process.env.ENABLE_LOG_LOCATION).trim().toString().toLowerCase() === "true" ? true : false : false
