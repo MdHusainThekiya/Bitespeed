@@ -2,11 +2,21 @@ import {Request, Response, NextFunction} from 'express';
 import logger from '../helper/logger';
 import Contact from '../models/Contact';
 
+interface Contact {
+  id : number,
+  phonenumber : string | null,
+  email : string | null,
+  linkedid : number | null,
+  linkprecedence : string | null,
+  createdat : string,
+  updatedat : string,
+  deletedat : string | null,
+}
 
 const identify = async (req : Request, res : Response, next : NextFunction) => {
 
   const email       : string | undefined | null = req?.body?.email;
-  const phoneNumber : number | undefined | null = req?.body?.phoneNumber;
+  const phoneNumber : string | undefined | null = req?.body?.phoneNumber && (req?.body?.phoneNumber).toString();
 
   if (!email && !phoneNumber) {
     const resObj = {
@@ -21,180 +31,117 @@ const identify = async (req : Request, res : Response, next : NextFunction) => {
 
   try {
 
-    /** STEPS */
-    // get all the rows that contains eighter email or phoneNumber order by createdAt
+    /** STEPS TO FOLLOW
+     * 
+     * 1. get all the rows that contains eighter email or phoneNumber order by createdAt 
+     * 
+     * 2. if not found then insert this entry as primary    
+     *     
+     * 3. if one primary found, 
+     *    3.1. if input has both, but db has any one, update document 
+     *    3.2. if input has both && db has both 
+     *    3.3. if email is newOne -> insert as secondary in DB 
+     *    3.4. if phoneNumber is newOne -> insert as secondary in DB       
+     * 
+     * 4. if multiple entries found 
+     *    4.1. collect all emails 
+     *    4.2. collect all phoneNumbers
+     *    4.3. collect multiple primaries
+     *    
+     *    4.4. if multiple primary found then make one primary and rest all seconday
+     *    4.5. if current email not fount in all_emails, create one
+     *    4.5. if current phoneNumber not fount in all_phoneNumbers, create one
+     *    4.6. get all secondaryIds and prepare for result
+     * 
+     * 5. return success result
+     */
 
-    // if not found then insert this entry as primary
 
-    // if one primary found,
-      // if input has both, but db has any one, update document
-      // if input has both && db has both
-        // if email is newOne -> insert as secondary in DB
-        // if phoneNumber is newOne -> insert as secondary in DB
+    /** STEP - 1 */
+    const allContactsResult = await Contact.getAllContacts(email, phoneNumber);
+    let primaryContatctId : number            = 0;
+    let emailList : Set<string>               = new Set();
+    let phoneNumberList : Set<string>         = new Set();
+    let secondaryContactIdsList : Set<number> = new Set();
 
-    // if multiple entries found
-      // collect all emails
-      // collect all phoneNumbers
-      // if current email not in all_emails
-        // if all_emails length is less then all entries, insert new entry as seconday, && update all_emails
-        // else create new secondary entry && update all_emails
-      // if current phoneNumber not in all_phoneNumbers
-        // if all phoneNumber length is less than all entries, insert new entry as seconday && update all_phoneNumbers
-        // else create new secondary entry && update all_phoneNumbers
-      // if multiple primary found
-        // update rest of the entries as secondary and first one will be primary
-      // return result
 
-    
-    const allContactsResult = await Contact.getAllContacts(email, (phoneNumber)?.toString());
-    
     if (!allContactsResult || !allContactsResult.rowCount || allContactsResult.rowCount <= 0) {
-      const insertResult = await Contact.insertOne(email || null, (phoneNumber)?.toString() || null, null, 'primary');
+      
+      /** STEP - 2 */
+      const insertResult = await Contact.insertOne(email || null, phoneNumber || null, null, 'primary');
       
       if (!insertResult.rows || !insertResult.rows[0]) {
         throw new Error('FAILED_TO_IDENTIFY_CONTECT')
       }
-      const resObj = {
-        success : true,
-        message : "SUCCESS",
-        request : req.body,
-        contact : {
-          primaryContatctId : insertResult.rows[0].id,
-          emails : email ? [insertResult.rows[0].email] : [],
-          phoneNumbers : phoneNumber ? [insertResult.rows[0].phonenumber] : [],
-          secondaryContactIds : []
-        }
-      }
-      return res.status(200).send(resObj);
+
+      primaryContatctId = insertResult.rows[0].id;
+      email && emailList.add(email);
+      phoneNumber && phoneNumberList.add(phoneNumber);
+
     } else if (allContactsResult.rowCount === 1) {
       
-      let existingData = allContactsResult.rows[0];
-      let finalEmailArr : Array<string> = [];
-      let finalPhoneNumberArr : Array<string>  = [];
-      let finalSecondaryIds : Array<number>  = [];
-      let updateKeys = [];
-      let updateValues = [];
+      /** STEP - 3 */
+      let existingSingleData : Contact = allContactsResult.rows[0];
+      primaryContatctId = existingSingleData.id;
       let insertSecondary = false;
-
-      if (email && phoneNumber) {
-
-        if (!existingData.email) {
-          // update email
-          updateKeys.push("email")
-          updateValues.push(email)
-
-        } else if (!existingData.phonenumber) {
-          // update phoneNumber
-          updateKeys.push("phoneNumber")
-          updateValues.push((phoneNumber).toString())
-        } else if (existingData.email === email && existingData.phonenumber !== (phoneNumber).toString()) {
-          // create secondary
-          insertSecondary = true;
-        } else if (existingData.email !== email && existingData.phonenumber === (phoneNumber).toString()) {
-          // create secondary
-          insertSecondary = true;
-        }
-
-      }
-
-      if( updateKeys.length > 0 ) {
-
-        const result = await Contact.updateOne(existingData.id, updateKeys, updateValues);
-
-        if (result && result.rows) {
-          existingData = result.rows[0]
-        }
-
-        
+      
+      if ( email
+        && phoneNumber 
+        && (
+             (!existingSingleData.email)
+          || (!existingSingleData.phonenumber)
+          || (existingSingleData.email !== email)
+          || (existingSingleData.phonenumber !== phoneNumber)
+        )
+      ) {
+        insertSecondary = true;
       }
       
-      if (existingData.email) {
-        finalEmailArr.push((existingData.email).toString());
-      }
-      if (existingData.phonenumber) {
-        finalPhoneNumberArr.push((existingData.phonenumber).toString());
-      }
+      existingSingleData.email && emailList.add((existingSingleData.email).toString());
+      existingSingleData.phonenumber && phoneNumberList.add((existingSingleData.phonenumber).toString());
 
-      if (insertSecondary) {
-        const result = await Contact.insertOne(  email || null, (phoneNumber)?.toString() || null, existingData.id, 'secondary' );
+      if (insertSecondary && email && phoneNumber) {
+        const result = await Contact.insertOne(  email, phoneNumber, existingSingleData.id, 'secondary' );
         if (result && result.rowCount && result.rowCount > 0) {
-          if (email && email !== existingData.email) {
-            finalEmailArr.push((email).toString())
-          }
-          if (phoneNumber && (phoneNumber).toString() !== existingData.phonenumber) {
-            finalPhoneNumberArr.push((phoneNumber).toString())
-          }
-
-          finalSecondaryIds.push(result.rows[0].id);
+          email && emailList.add((email).toString())
+          phoneNumber && phoneNumberList.add(phoneNumber)
+          result.rows[0] && secondaryContactIdsList.add(result.rows[0].id);
         }
       }
-
-      // return this one;
-      const resObj = {
-        success : true,
-        message : "SUCCESS",
-        request : req.body,
-        contact : {
-          primaryContatctId : existingData.id,
-          emails : finalEmailArr,
-          phoneNumbers : finalPhoneNumberArr,
-          secondaryContactIds : finalSecondaryIds
-        }
-      }
-      return res.status(200).send(resObj);
 
     } else {
 
-      let multipleResults = allContactsResult.rows;
-      let allEmailObj : any = {};
-      let allPhoneNumberObj : any = {};
-      let allSecondaryIds : string[] = [];
-      let primaryContatctId : number | null = null;
-      let updateAsSecondaryIds : number[] = [];
-      let hasCurrentMail : boolean = false;
-      let hasCurrentPhoneNumber : boolean = false;
+      /** STEP - 4 */
+      let existingMultiData : Contact[] = allContactsResult.rows;
+      let updateAsSecondaryIds : number[]   = [];
 
-      for (let index = 0; index < multipleResults.length; index++) {
+      for (let index = 0; index < existingMultiData.length; index++) {
 
-        const tId = multipleResults[index].id
-        const tEmail = multipleResults[index].email
-        const tPhoneNumber = multipleResults[index].phonenumber
-        const tLinkPrecedence = multipleResults[index].linkPrecedence
+        const { id : tId, email : tEmail, phonenumber : tPhoneNumber, linkprecedence : tLinkPrecedence } = existingMultiData[index];
 
-        if (tEmail) {
-          allEmailObj[tEmail] = true;
-        }
-        if (tPhoneNumber) {
-          allPhoneNumberObj[tPhoneNumber] = true;
-        }
+        tEmail && emailList.add(tEmail);
+        tPhoneNumber && phoneNumberList.add(tPhoneNumber);
 
-        if(tLinkPrecedence === "primary") {
+        if(tLinkPrecedence && tLinkPrecedence === "primary") {
           if (!primaryContatctId) {
             primaryContatctId = tId;
           } else {
-            // need to update as secondary
             updateAsSecondaryIds.push(tId);
           }
         }
 
-        if (email && !hasCurrentMail && tEmail === email) {
-          hasCurrentMail = true;
-        }
-        if (phoneNumber && !hasCurrentPhoneNumber && tPhoneNumber === (phoneNumber)?.toString()) {
-          hasCurrentPhoneNumber = true;
+        if (tId && primaryContatctId && tId !== primaryContatctId) {
+          secondaryContactIdsList.add(tId);
         }
 
-        if (primaryContatctId && tId !== primaryContatctId) {
-          allSecondaryIds.push((tId).toString());
-        }
       }
 
       if (!primaryContatctId) { // all are secondary, need to make 1st one primary && rest all are secondary
         
-        logger({type : 'error', log : 'ALL_ARE_SECONDARY SOMETHING_WENT_WRONG', multipleResults});
+        logger({type : 'error', log : 'ALL_ARE_SECONDARY SOMETHING_WENT_WRONG', existingMultiData});
 
-        for (let index = 0; index < multipleResults.length; index++) {
-          const { id } = multipleResults[index];
+        for (let index = 0; index < existingMultiData.length; index++) {
+          const { id } = existingMultiData[index];
           if (!primaryContatctId) {
             primaryContatctId = id;
           } else {
@@ -203,6 +150,7 @@ const identify = async (req : Request, res : Response, next : NextFunction) => {
         }
 
         if (primaryContatctId) {
+          // update as primary
           await Contact.updateOne(primaryContatctId, ["linkedId", "linkPrecedence"], [null, "primary"]);
         }
       }
@@ -212,36 +160,31 @@ const identify = async (req : Request, res : Response, next : NextFunction) => {
         await Contact.updateMany( updateAsSecondaryIds, ["linkedId", "linkPrecedence"], [primaryContatctId, "secondary"] )
       }
 
-
-      if (email && !hasCurrentMail && hasCurrentPhoneNumber) {
-        const result = await Contact.insertOne(  email || null, (phoneNumber)?.toString() || null, primaryContatctId, 'secondary' );
+      // insert as secondary
+      if (primaryContatctId && email && phoneNumber && (!emailList.has(email) || !phoneNumberList.has(phoneNumber))) {
+        const result = await Contact.insertOne(  email || null, phoneNumber || null, primaryContatctId, 'secondary' );
         if (result && result.rows && result.rows[0]) {
-          allSecondaryIds.push((result.rows[0].id).toString())
-          allEmailObj[email] = true;
-        }
-      }
-      if (phoneNumber && !hasCurrentPhoneNumber && hasCurrentMail) {
-        const result = await Contact.insertOne(  email || null, (phoneNumber)?.toString() || null, primaryContatctId, 'secondary' );
-        if (result && result.rows && result.rows[0]) {
-          allSecondaryIds.push((result.rows[0].id).toString())
-          allPhoneNumberObj[(phoneNumber).toString()] = true;
+          emailList.add(email);
+          phoneNumberList.add(phoneNumber);
+          secondaryContactIdsList.add(result.rows[0].id)
         }
       }
 
-      // return this one;
-      const resObj = {
-        success : true,
-        message : "SUCCESS_2",
-        request : req.body,
-        contact : {
-          primaryContatctId : primaryContatctId,
-          emails : Object.keys(allEmailObj),
-          phoneNumbers : Object.keys(allPhoneNumberObj),
-          secondaryContactIds : allSecondaryIds,
-        }
-      }
-      return res.status(200).send(resObj);
     }
+
+    /** STEP - 5 */
+    const resObj = {
+      success : true,
+      message : "SUCCESS",
+      request : req.body,
+      contact : {
+        primaryContatctId : primaryContatctId,
+        emails : Array.from(emailList),
+        phoneNumbers : Array.from(phoneNumberList),
+        secondaryContactIds : Array.from(secondaryContactIdsList)
+      }
+    }
+    return res.status(200).send(resObj);
   
   } catch (error) {
     
