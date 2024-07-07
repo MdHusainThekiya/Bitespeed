@@ -5,7 +5,9 @@ import logger from '../helper/logger';
 export let pool : pg.Pool;
 
 export const connectPostgresDB = async () => {
-  pool = new pg.Pool({
+  pool = new pg.Pool( config.db.connectionString ? {
+    connectionString : config.db.connectionString,
+  } : {
     host : config.db.host,
     port : config.db.port,
     user : config.db.user,

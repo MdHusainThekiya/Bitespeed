@@ -5,15 +5,30 @@
   "main": "src/index.ts",
   "scripts": {
     "start": "node dist/index.js",
-    "build": "tsc",
+    "build": "rimraf dist && tsc",
+    "ts.check": "tsc --project tsconfig.json",
+    "add-build": "git add dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "pre-commit": [
+    "ts.check",
+    "build",
+    "add-build"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MdHusainThekiya/Bitespeed.git"
   },
   "author": "Md Husain Thekiya (hussainthekiya@gmail.com)",
-  "keywords": ["node.js", "typescript", "express.js", "postgresql", "sql", "API", "boilerplate"],
+  "keywords": [
+    "node.js",
+    "typescript",
+    "express.js",
+    "postgresql",
+    "sql",
+    "API",
+    "boilerplate"
+  ],
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/MdHusainThekiya/Bitespeed/issues"

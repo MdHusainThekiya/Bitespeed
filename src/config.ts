@@ -14,6 +14,7 @@ interface DBConfig {
   user     : string,
   password : string,
   database   : string,
+  connectionString : string | null
 }
 interface Config {
   service : ServiceConfig,
@@ -34,7 +35,8 @@ const config : Config = {
     port     : Number(process.env.POSTGRES_PORT)                  || 5432,
     user     : (process.env.POSTGRES_USER)?.trim().toString()     || "defaultUser",
     password : (process.env.POSTGRES_PASSWORD)?.trim().toString() || "defaultPassword",
-    database : (process.env.POSTGRES_DB_NAME)?.trim().toString()  || "defaultDB"
+    database : (process.env.POSTGRES_DB_NAME)?.trim().toString()  || "defaultDB",
+    connectionString : (process.env.POSTGRES_URL)?.trim().toString() || null,
   }
 }
 
