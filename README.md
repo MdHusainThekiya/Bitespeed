@@ -1,7 +1,5 @@
-# NodeTS PostgreSQL REST APIs
-
-serviceName : "contactIdentifierAPI"
-
+# Backend Service: Identity Reconciliation
+### (NodeTS, REST APIs, Postgres SQL)
 
 ## Authors
 
@@ -10,15 +8,10 @@ serviceName : "contactIdentifierAPI"
     - [https://github.com/MdHusainThekiya/](https://github.com/MdHusainThekiya/)
     - [https://www.linkedin.com/in/md-husain-thekiya/](https://github.com/MdHusainThekiya/)
 
-### TESTING CURL REQUEST
-```bash
-curl --location 'https://contact-identifier-api.vercel.app/identify' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "email" : "hussainthekiya@gmail.com",
-    "phoneNumber" : null
-}'
-```
+
+## Overview
+
+This project implements a web service that helps [amazon.in] link different orders made with various contact information to the same customer. By using different email addresses and phone numbers for each purchase, a customer like Doc makes it challenging to track his identity. The service reconciles this information to provide a personalized customer experience.
 
 
 ## Local Environment Setup
@@ -75,4 +68,152 @@ POSTGRES_PORT=5432
 POSTGRES_USER=postgresUser
 POSTGRES_PASSWORD=postgresPass
 POSTGRES_DB_NAME=postgresDB
+```
+
+## Usage
+
+Once the server is running, you can use the `/identify` endpoint to link customer identities.
+
+### API Endpoint
+
+#### `POST /identify`
+
+**Request Body:**
+
+```json
+{
+  "email": "string?",
+  "phoneNumber": "number?"
+}
+```
+
+**Response:**
+
+```json
+{
+  "contact": {
+    "primaryContactId": number,
+    "emails": ["string"],
+    "phoneNumbers": ["string"],
+    "secondaryContactIds": [number]
+  }
+}
+```
+
+- If the contact already exists, the response will include the consolidated contact information.
+- If the contact does not exist, a new entry will be created with `linkPrecedence="primary"`.
+
+## Database Schema
+
+The database contains a table named `Contact` with the following columns:
+
+```json
+{
+  "id": "Int",
+  "phoneNumber": "String?",
+  "email": "String?",
+  "linkedId": "Int?",
+  "linkPrecedence": "String", // "primary" or "secondary"
+  "createdAt": "DateTime",
+  "updatedAt": "DateTime",
+  "deletedAt": "DateTime?"
+}
+```
+
+- **Primary Contact:** The oldest contact entry with `linkPrecedence="primary"`.
+- **Secondary Contact:** Contacts linked to the primary contact.
+
+### Example Scenarios
+
+#### Example 1:
+Existing Contact:
+```json
+{
+  "id": 1,
+  "phoneNumber": "123456",
+  "email": "hussainthekiya@gmail.com",
+  "linkedId": null,
+  "linkPrecedence": "primary",
+  "createdAt": "2023-04-01 00:00:00.374+00",
+  "updatedAt": "2023-04-01 00:00:00.374+00",
+  "deletedAt": null
+}
+```
+
+New Request:
+```json
+{
+  "email": "dev.ht@google.com",
+  "phoneNumber": "123456"
+}
+```
+
+Database State After Request:
+```json
+{
+  "id": 1,
+  "phoneNumber": "123456",
+  "email": "hussainthekiya@gmail.com",
+  "linkedId": null,
+  "linkPrecedence": "primary",
+  "createdAt": "2023-04-01 00:00:00.374+00",
+  "updatedAt": "2023-04-01 00:00:00.374+00",
+  "deletedAt": null
+},
+{
+  "id": 23,
+  "phoneNumber": "123456",
+  "email": "dev.ht@google.com",
+  "linkedId": 1,
+  "linkPrecedence": "secondary",
+  "createdAt": "2023-04-20 05:30:00.11+00",
+  "updatedAt": "2023-04-20 05:30:00.11+00",
+  "deletedAt": null
+}
+```
+
+#### Example 2:
+Request:
+```json
+{
+  "email": "john.doe@outlook.com",
+  "phoneNumber": "717171"
+}
+```
+
+Database State After Request:
+```json
+{
+  "id": 11,
+  "phoneNumber": "919191",
+  "email": "john.doe@outlook.com",
+  "linkedId": null,
+  "linkPrecedence": "primary",
+  "createdAt": "2023-04-11 00:00:00.374+00",
+  "updatedAt": "2023-04-11 00:00:00.374+00",
+  "deletedAt": null
+},
+{
+  "id": 27,
+  "phoneNumber": "717171",
+  "email": "husain@mit.edu",
+  "linkedId": 11,
+  "linkPrecedence": "secondary",
+  "createdAt": "2023-04-21 05:30:00.11+00",
+  "updatedAt": "2023-04-28 06:40:00.23+00",
+  "deletedAt": null
+}
+```
+
+## Hosting
+
+The application is hosted on [Vercel.com](https://contact-identifier-api.vercel.app). You can access the `/identify` endpoint at the following URL:
+
+```
+curl --location 'https://contact-identifier-api.vercel.app/identify' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "email" : "hussainthekiya@gmail.com",
+    "phoneNumber" : null
+}'
 ```
