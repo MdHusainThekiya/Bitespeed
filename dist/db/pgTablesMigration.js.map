@@ -1,0 +1,1 @@
+{"version":3,"file":"pgTablesMigration.js","sourceRoot":"","sources":["../../src/db/pgTablesMigration.ts"],"names":[],"mappings":";;;;;;;;;;;;;;AAAA,wBAAwB;AACxB,gEAAwC;AAExC,kBAAe,GAAS,EAAE;IAExB,MAAM,iBAAO,CAAC,WAAW,EAAE,CAAC,CAAC,uBAAuB;AAEtD,CAAC,CAAA,CAAA"}
