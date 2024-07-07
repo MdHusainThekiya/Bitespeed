@@ -10,6 +10,16 @@ serviceName : "contactIdentifierAPI"
     - [https://github.com/MdHusainThekiya/](https://github.com/MdHusainThekiya/)
     - [https://www.linkedin.com/in/md-husain-thekiya/](https://github.com/MdHusainThekiya/)
 
+### TESTING CURL REQUEST
+```bash
+curl --location 'https://contact-identifier-api.vercel.app/identify' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "email" : "hussainthekiya@gmail.com",
+    "phoneNumber" : null
+}'
+```
+
 
 ## Local Environment Setup
 
