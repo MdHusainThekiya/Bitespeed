@@ -53,7 +53,7 @@ curl http://127.0.0.1:4040/
 ### .env contails following
 ```bash
 # SERVICE CONFIGS
-SERVICE_PORT=4040
+PORT=4040
 ENABLE_LOGS=true
 ALLOWED_LOG_LEVELS='all'
 ENABLE_LOG_LOCATION=true
