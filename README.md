@@ -11,7 +11,7 @@
 
 ## Overview
 
-This project implements a web service that helps [amazon.in] link different orders made with various contact information to the same customer. By using different email addresses and phone numbers for each purchase, a customer like Doc makes it challenging to track his identity. The service reconciles this information to provide a personalized customer experience.
+This project implements a web service that helps [amazon.in](https://amazon.in/) link different orders made with various contact information to the same customer. By using different email addresses and phone numbers for each purchase, a customer like Doc makes it challenging to track his identity. The service reconciles this information to provide a personalized customer experience.
 
 
 ## Local Environment Setup
